@@ -82,7 +82,11 @@ __global__ void modify_hue_kernel(png_bytep d_image,
                                   int height,
                                   double *A)
 {
-    // SEU CODIGO DO EP3 AQUI
+     int i = threadIdx.x;
+     int j = threadIdx.y;
+     png_bytep row = &(d_image[i * width * 3]);
+     png_bytep px = &(row[j * 3]);
+     modify_pixel(px, A);
 }
 
 // Altera a matiz (hue) de uma imagem em paralelo
@@ -123,28 +127,28 @@ void modify_hue(png_bytep h_image,
     cudaMalloc(&device_A, A_size);
     checkErrors(cudaGetLastError(), "Alocacao da matriz A no device");
 
-    cudaMemcpy(&device_A, &host_A, A_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_A, host_A, A_size, cudaMemcpyHostToDevice);
     checkErrors(cudaGetLastError(), "Copia da matriz A para o device");
 
-    double *device_image;
+    png_bytep device_image;
     cudaMalloc(&device_image, image_size);
     checkErrors(cudaGetLastError(), "Alocacao da imagem no device");
 
-    cudaMemcpy(&device_image, &h_image, image_size, cudaMemcpyHostToDevice);
+    cudaMemcpy(device_image, h_image, image_size, cudaMemcpyHostToDevice);
     checkErrors(cudaGetLastError(), "Copia da imagem para o device");
 
     // Determinar as dimensoes adequadas aqui
     dim3 dim_block(1, 1);
     dim3 dim_grid(1, 1);
 
-    modify_hue_kernel<<<dim_grid, dim_block>>>(&device_image, width, height, &device_A);
+    modify_hue_kernel<<<dim_grid, dim_block>>>(device_image, width, height, device_A);
     checkErrors(cudaGetLastError(), "Lançamento do kernel");
 
-    cudaMemcpy(&h_image, &device_image, image_size, cudaMemcpyDeviceToHost);
+    cudaMemcpy(h_image, device_image, image_size, cudaMemcpyDeviceToHost);
     checkErrors(cudaGetLastError(), "Copia da imagem para o host");
 
-    cudaFree(&device_A);
-    cudaFree(&device_image);
+    cudaFree(device_A);
+    cudaFree(device_image);
 }
 
 // Le imagem png de um arquivo de entrada para a memoria
